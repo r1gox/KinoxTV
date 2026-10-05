@@ -49,10 +49,14 @@ sub onContent()
 end sub
 
 sub updateFocus()
-  listFocused = m.top.rowListHasFocus
-  selected = m.top.itemHasFocus
-  m.ring.visible = (selected and listFocused)
-  if selected and listFocused then
+  selected = false
+  if m.top.itemHasFocus = true then selected = true
+  fp = m.top.focusPercent
+  if fp <> invalid then
+    if fp > 0.5 then selected = true
+  end if
+  m.ring.visible = selected
+  if selected then
     m.t.color = "0xFFFFFFFF"
   else
     m.t.color = "0xC9C0DCFF"

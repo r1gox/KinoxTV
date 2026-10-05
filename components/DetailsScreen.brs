@@ -46,7 +46,14 @@ sub onContent()
   c = m.top.content
   if c = invalid then return
   m.poster.uri = c.HDPosterUrl
-  if c.backdrop <> "" then m.bd.uri = "https://image.tmdb.org/t/p/w1280" + c.backdrop
+  m.bd.uri = ""
+  if c.backdrop <> invalid and c.backdrop <> "" then
+    if Left(c.backdrop, 1) = "/" then
+      m.bd.uri = "https://image.tmdb.org/t/p/w1280" + c.backdrop
+    else if Instr(1, c.backdrop, "http") = 1 then
+      m.bd.uri = c.backdrop
+    end if
+  end if
   setButtons()
   m.title.text = c.title
   m.kind = "Película"
@@ -73,6 +80,15 @@ sub onDetail(evt as Object)
   c = m.top.content
   if d = invalid or c = invalid then return
   if d.error <> invalid then return
+  ' Fondo / poster / sinopsis desde TMDB
+  if d.backdrop_path <> invalid and d.backdrop_path <> "" then
+    m.bd.uri = "https://image.tmdb.org/t/p/w1280" + d.backdrop_path
+  end if
+  if d.poster_path <> invalid and d.poster_path <> "" then
+    if c.HDPosterUrl = invalid or c.HDPosterUrl = "" then
+      m.poster.uri = "https://image.tmdb.org/t/p/w500" + d.poster_path
+    end if
+  end if
   ' Completar sinopsis si venía cortada (favoritos antiguos con Left 120)
   if d.overview <> invalid and d.overview <> "" then
     cur = m.ov.text

@@ -4,8 +4,8 @@
     <field id="itemContent" type="node" onChange="onContent" />
     <field id="width" type="float" />
     <field id="height" type="float" />
-    <field id="rowFocusPercent" type="float" />
-    <field id="focusPercent" type="float" />
+    <field id="rowFocusPercent" type="float" onChange="updateFocus" />
+    <field id="focusPercent" type="float" onChange="updateFocus" />
     <field id="itemHasFocus" type="boolean" onChange="updateFocus" />
     <field id="rowHasFocus" type="boolean" />
     <field id="rowListHasFocus" type="boolean" onChange="updateFocus" />
@@ -24,10 +24,10 @@
     <Label id="badgeT" translation="[8,8]" width="104" height="44" horizAlign="center" vertAlign="center" text="VISTO" color="0xFFFFFFFF" font="font:SmallestBoldSystemFont" visible="false" />
     <Label id="t" translation="[0,320]" width="210" height="46" vertAlign="center" color="0xC9C0DCFF" font="font:SmallSystemFont" />
     <Group id="ring" visible="false">
-      <Rectangle translation="[0,0]" width="210" height="5" color="0xA66BFFFF" />
-      <Rectangle translation="[0,310]" width="210" height="5" color="0xA66BFFFF" />
-      <Rectangle translation="[0,0]" width="5" height="315" color="0xA66BFFFF" />
-      <Rectangle translation="[205,0]" width="5" height="315" color="0xA66BFFFF" />
+      <Rectangle translation="[-4,-4]" width="218" height="8" color="0xA66BFFFF" />
+      <Rectangle translation="[-4,311]" width="218" height="8" color="0xA66BFFFF" />
+      <Rectangle translation="[-4,-4]" width="8" height="323" color="0xA66BFFFF" />
+      <Rectangle translation="[206,-4]" width="8" height="323" color="0xA66BFFFF" />
     </Group>
   </children>
 </component>

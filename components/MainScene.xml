@@ -22,6 +22,7 @@
     <!-- Cargando centrado en pantalla completa (fuera de heroAll) -->
     <Label id="status" translation="[0,500]" width="1920" height="80" wrap="true" horizAlign="center" vertAlign="center" font="font:MediumSystemFont" color="0xF4F0FAFF" />
     <RowList id="rows" visible="false" translation="[0,545]" itemComponentName="PosterItem" itemSize="[1920,420]" itemSpacing="[0,10]" numRows="2" rowItemSize="[[210,360]]" rowItemSpacing="[[22,0]]" focusXOffset="[170]" rowLabelOffset="[[170,8]]" showRowLabel="[true]" rowLabelColor="0xF4F0FAFF" rowFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/blank.png" />
+    <MarkupGrid id="posterGrid" visible="false" translation="[170,120]" itemComponentName="PosterItem" itemSize="[210,370]" itemSpacing="[22,20]" numColumns="7" numRows="4" vertFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/blank.png" />
     <MarkupGrid id="grid" visible="false" translation="[170,150]" itemComponentName="ChannelItem" itemSize="[260,146]" itemSpacing="[24,24]" numColumns="6" numRows="5" vertFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/blank.png" />
     <Label id="navHint" visible="false" translation="[170,1026]" width="800" text="Izquierda: menú" font="font:SmallSystemFont" color="0x8B7FA6FF" />
     <Timer id="heroTimer" repeat="true" duration="8" />
