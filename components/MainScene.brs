@@ -9,6 +9,7 @@ sub init()
   m.hero = m.top.findNode("hero")
   m.title = m.top.findNode("title")
   m.meta = m.top.findNode("meta")
+  m.heroGenres = m.top.findNode("heroGenres")
   m.ov = m.top.findNode("ov")
   m.rows = m.top.findNode("rows")
   m.grid = m.top.findNode("grid")
@@ -889,6 +890,7 @@ sub updateHeroFrom(it as Object)
   rt = ""
   if it.rating <> invalid then rt = it.rating
   m.meta.text = kind + "   |   " + yr + "   |   TMDB " + rt + " / 10"
+  if m.heroGenres <> invalid then m.heroGenres.text = ""
   ov = ""
   if it.overview <> invalid then ov = it.overview
   m.ov.text = ov
@@ -953,6 +955,19 @@ sub onHeroTmdb()
   end if
   if rt <> "" or yr <> "" then
     m.meta.text = kind + "   |   " + yr + "   |   TMDB " + rt + " / 10"
+  end if
+  ' Generos
+  if m.heroGenres <> invalid then
+    gtxt = ""
+    if d.genres <> invalid then
+      for each g in d.genres
+        if g.name <> invalid then
+          if gtxt <> "" then gtxt = gtxt + "  ·  "
+          gtxt = gtxt + g.name
+        end if
+      end for
+    end if
+    m.heroGenres.text = gtxt
   end if
 end sub
 
@@ -1153,10 +1168,18 @@ sub playItem(it as Object)
 end sub
 
 sub showPlayStatus(txt as String)
-  m.status.text = txt
+  ' Mostrar DENTRO del detalle, no en inicio
+  if m.details <> invalid then
+    m.details.playStatus = txt
+  else
+    m.status.text = txt
+  end if
 end sub
 
 sub hidePlayStatus()
+  if m.details <> invalid then
+    m.details.playStatus = ""
+  end if
   m.status.text = ""
 end sub
 

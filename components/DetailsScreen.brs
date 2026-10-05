@@ -7,9 +7,25 @@ sub init()
   m.ov = m.top.findNode("ov")
   m.prov = m.top.findNode("prov")
   m.btns = m.top.findNode("btns")
+  m.playStatusLbl = m.top.findNode("playStatusLbl")
+  m.playStatusBg = m.top.findNode("playStatusBg")
   m.btns.observeField("buttonSelected", "onBtn")
   m.top.observeField("focusedChild", "onFocusChange")
   setButtons()
+end sub
+
+sub onPlayStatus()
+  txt = m.top.playStatus
+  if txt = invalid then txt = ""
+  if txt = "" then
+    m.playStatusLbl.visible = false
+    m.playStatusBg.visible = false
+    m.playStatusLbl.text = ""
+  else
+    m.playStatusLbl.text = txt
+    m.playStatusLbl.visible = true
+    m.playStatusBg.visible = true
+  end if
 end sub
 
 sub setButtons()
@@ -58,7 +74,11 @@ sub onContent()
   m.title.text = c.title
   m.kind = "Película"
   if c.mediaType = "tv" then m.kind = "Serie"
-  m.meta.text = m.kind + "   |   " + c.year + "   |   TMDB " + c.rating + " / 10"
+  yr = ""
+  if c.year <> invalid then yr = c.year
+  rt = ""
+  if c.rating <> invalid then rt = c.rating
+  m.meta.text = m.kind + "   |   " + yr + "   |   TMDB " + rt + " / 10"
   if c.overview = "" then
     m.ov.text = "Sin sinopsis en español."
   else
@@ -103,14 +123,34 @@ sub onDetail(evt as Object)
     end for
   end if
   m.genres.text = joinList(names, "  ·  ")
-  parts = [m.kind, c.year]
+  yr = ""
+  if c.year <> invalid then yr = c.year
+  if yr = "" or yr = "0" then
+    if d.release_date <> invalid and Len(d.release_date) >= 4 then yr = Left(d.release_date, 4)
+    if d.first_air_date <> invalid and Len(d.first_air_date) >= 4 then yr = Left(d.first_air_date, 4)
+  end if
+  ' Preferir siempre fecha TMDB si existe
+  if d.release_date <> invalid and Len(d.release_date) >= 4 then yr = Left(d.release_date, 4)
+  if d.first_air_date <> invalid and Len(d.first_air_date) >= 4 then yr = Left(d.first_air_date, 4)
+  rt = ""
+  if c.rating <> invalid then rt = c.rating
+  if d.vote_average <> invalid then
+    va = d.vote_average
+    if type(va) = "roString" or type(va) = "String" then
+      rt = Left(va, 3)
+    else
+      rt = Left(va.toStr(), 3)
+    end if
+  end if
+  parts = [m.kind]
+  if yr <> "" then parts.Push(yr)
   if d.runtime <> invalid then
     if d.runtime > 0 then parts.Push(d.runtime.toStr() + " min")
   end if
   if d.number_of_seasons <> invalid then
-    parts.Push(d.number_of_seasons.toStr() + " temporada(s)")
+    if d.number_of_seasons > 0 then parts.Push(d.number_of_seasons.toStr() + " temporada(s)")
   end if
-  parts.Push("TMDB " + c.rating + " / 10")
+  if rt <> "" then parts.Push("TMDB " + rt + " / 10")
   m.meta.text = joinList(parts, "   |   ")
   txt = "No hay plataformas registradas en México."
   pv = d["watch/providers"]

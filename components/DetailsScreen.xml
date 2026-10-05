@@ -5,6 +5,7 @@
     <field id="content" type="node" onChange="onContent" />
     <field id="isFav" type="boolean" onChange="onFavChanged" />
     <field id="action" type="string" alwaysNotify="true" />
+    <field id="playStatus" type="string" onChange="onPlayStatus" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/DetailsScreen.brs" />
   <children>
@@ -20,5 +21,8 @@
     <Label id="ov" translation="[520,360]" width="1100" height="230" wrap="true" lineSpacing="8" font="font:MediumSystemFont" color="0xE4DDF2FF" />
     <Label id="prov" translation="[520,620]" width="1300" font="font:MediumSystemFont" color="0xFFD166FF" />
     <ButtonGroup id="btns" translation="[520,690]" layoutDirection="horiz" horizAlignment="left" minWidth="260" maxWidth="420" />
+    <!-- Estado de carga del reproductor (dentro del detalle) -->
+    <Rectangle id="playStatusBg" translation="[460,480]" width="1000" height="90" color="0x0A0611EE" visible="false" />
+    <Label id="playStatusLbl" translation="[460,480]" width="1000" height="90" horizAlign="center" vertAlign="center" wrap="true" font="font:MediumBoldSystemFont" color="0xF4F0FAFF" visible="false" />
   </children>
 </component>
