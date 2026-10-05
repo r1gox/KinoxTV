@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="TmdbTask" extends="Task">
+  <interface>
+    <field id="apiKey" type="string" />
+    <field id="path" type="string" />
+    <field id="params" type="string" value="" />
+    <field id="query" type="string" value="" />
+    <field id="tab" type="string" value="" />
+    <field id="idx" type="integer" value="0" />
+    <field id="result" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/TmdbTask.brs" />
+</component>

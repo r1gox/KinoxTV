@@ -1,0 +1,4 @@
+{
+  "movie:0": { "url": "https://tu-servidor.com/pelicula.m3u8", "format": "hls" },
+  "tv:0": { "url": "https://tu-servidor.com/serie.mp4", "format": "mp4" }
+}

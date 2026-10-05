@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="EpisodeItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+    <field id="width" type="float" />
+    <field id="height" type="float" />
+    <field id="index" type="integer" />
+    <field id="focusPercent" type="float" />
+    <field id="rowHasFocus" type="boolean" />
+    <field id="itemHasFocus" type="boolean" onChange="updateFocus" />
+    <field id="listHasFocus" type="boolean" onChange="updateFocus" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/EpisodeItem.brs" />
+  <children>
+    <Rectangle translation="[0,0]" width="1340" height="190" color="0x1B1230F2" />
+    <Poster id="still" translation="[12,12]" width="270" height="166" loadDisplayMode="scaleToZoom" />
+    <Label id="title" translation="[302,10]" width="760" height="50" vertAlign="center" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+    <Label id="meta" translation="[302,60]" width="760" height="42" vertAlign="center" font="font:SmallSystemFont" color="0xCDB0FFFF" />
+    <Label id="ov" translation="[302,106]" width="1020" height="76" wrap="true" lineSpacing="2" font="font:SmallSystemFont" color="0xD8D0E8FF" />
+    <Rectangle id="chip" translation="[1236,12]" width="92" height="46" color="0x0A0611E6" />
+    <Label id="rate" translation="[1236,12]" width="92" height="46" horizAlign="center" vertAlign="center" font="font:SmallBoldSystemFont" color="0xFFD166FF" />
+    <Rectangle id="badge" translation="[1090,12]" width="134" height="46" color="0x2BB673FF" visible="false" />
+    <Label id="badgeT" translation="[1090,12]" width="134" height="46" horizAlign="center" vertAlign="center" text="VISTO" font="font:SmallestBoldSystemFont" color="0xFFFFFFFF" visible="false" />
+    <Group id="ring" visible="false">
+      <Rectangle translation="[0,0]" width="1340" height="5" color="0xA66BFFFF" />
+      <Rectangle translation="[0,185]" width="1340" height="5" color="0xA66BFFFF" />
+      <Rectangle translation="[0,0]" width="5" height="190" color="0xA66BFFFF" />
+      <Rectangle translation="[1335,0]" width="5" height="190" color="0xA66BFFFF" />
+    </Group>
+  </children>
+</component>
