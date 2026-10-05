@@ -13,12 +13,11 @@
     <Poster id="bd" width="1920" height="1080" loadDisplayMode="scaleToZoom" opacity="0.3" />
     <Rectangle width="1920" height="1080" color="0x0A0611BC" />
     <Label id="title" translation="[96,48]" width="1700" font="font:LargeBoldSystemFont" color="0xF4F0FAFF" />
-    <Label id="sub" translation="[96,122]" width="1700" text="Elige una temporada y luego un episodio" font="font:SmallSystemFont" color="0xCDB0FFFF" />
-    <LabelList id="seasons" translation="[96,200]" itemSize="[330,64]" numRows="10" color="0xC9C0DCFF" focusedColor="0xFFFFFFFF" />
-    <Label id="seasonTitle" translation="[480,150]" width="1340" font="font:MediumBoldSystemFont" color="0xCDB0FFFF" />
-    <MarkupList id="eps" translation="[480,206]" itemComponentName="EpisodeItem" itemSize="[1340,190]" itemSpacing="[0,12]" numRows="4" focusBitmapUri="pkg:/images/blank.png" />
-    <Label id="status" translation="[480,420]" width="1300" wrap="true" font="font:MediumSystemFont" color="0xF4F0FAFF" />
-    <Label id="hint" translation="[96,1020]" width="1700" text="Derecha: ver episodios      OK: reproducir      Izquierda: temporadas      Atrás: volver" font="font:SmallSystemFont" color="0xA99CC0FF" />
+    <Label id="sub" translation="[96,130]" width="1700" text="Elige una temporada y luego un episodio" font="font:SmallSystemFont" color="0xCDB0FFFF" />
+    <LabelList id="seasons" translation="[96,260]" itemSize="[330,64]" numRows="9" color="0xC9C0DCFF" focusedColor="0xFFFFFFFF" />
+    <Label id="seasonTitle" translation="[480,200]" width="1340" font="font:MediumBoldSystemFont" color="0xCDB0FFFF" />
+    <MarkupList id="eps" translation="[480,260]" itemComponentName="EpisodeItem" itemSize="[1340,190]" itemSpacing="[0,12]" numRows="4" focusBitmapUri="pkg:/images/blank.png" />
+    <Label id="status" translation="[0,500]" width="1920" height="80" wrap="true" horizAlign="center" vertAlign="center" font="font:MediumSystemFont" color="0xF4F0FAFF" />
     <Timer id="debounce" repeat="false" duration="0.35" />
   </children>
 </component>

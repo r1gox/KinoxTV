@@ -73,6 +73,13 @@ sub onDetail(evt as Object)
   c = m.top.content
   if d = invalid or c = invalid then return
   if d.error <> invalid then return
+  ' Completar sinopsis si venía cortada (favoritos antiguos con Left 120)
+  if d.overview <> invalid and d.overview <> "" then
+    cur = m.ov.text
+    if cur = "" or cur = "Sin sinopsis en español." or Len(cur) < Len(d.overview) then
+      m.ov.text = d.overview
+    end if
+  end if
   names = []
   if d.genres <> invalid then
     for each g in d.genres

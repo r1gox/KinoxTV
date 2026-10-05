@@ -17,9 +17,10 @@
       <Label id="hint" visible="false" translation="[170,452]" width="1300" text="OK  Ver detalles          Derecha  Explorar el catálogo" font="font:SmallSystemFont" color="0xA99CC0FF" />
       <Group id="dots" visible="false" translation="[170,494]" />
       <Label id="head" translation="[170,70]" width="1500" font="font:LargeBoldSystemFont" color="0xF4F0FAFF" />
-      <Label id="status" translation="[170,520]" width="1500" wrap="true" font="font:MediumSystemFont" color="0xF4F0FAFF" />
       <Label id="help" visible="false" translation="[170,120]" width="1400" wrap="true" lineSpacing="12" font="font:MediumSystemFont" color="0xE4DDF2FF" />
     </Group>
+    <!-- Cargando centrado en pantalla completa (fuera de heroAll) -->
+    <Label id="status" translation="[0,500]" width="1920" height="80" wrap="true" horizAlign="center" vertAlign="center" font="font:MediumSystemFont" color="0xF4F0FAFF" />
     <RowList id="rows" visible="false" translation="[0,545]" itemComponentName="PosterItem" itemSize="[1920,420]" itemSpacing="[0,10]" numRows="2" rowItemSize="[[210,360]]" rowItemSpacing="[[22,0]]" focusXOffset="[170]" rowLabelOffset="[[170,8]]" showRowLabel="[true]" rowLabelColor="0xF4F0FAFF" rowFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/blank.png" />
     <MarkupGrid id="grid" visible="false" translation="[170,150]" itemComponentName="ChannelItem" itemSize="[260,146]" itemSpacing="[24,24]" numColumns="6" numRows="5" vertFocusAnimationStyle="floatingFocus" focusBitmapUri="pkg:/images/blank.png" />
     <Label id="navHint" visible="false" translation="[170,1026]" width="800" text="Izquierda: menú" font="font:SmallSystemFont" color="0x8B7FA6FF" />

@@ -552,7 +552,10 @@ sub saveUser()
 end sub
 
 function recOf(it as Object) as Object
-  return { ckey: it.ckey, id: it.tmdbId, mt: it.mediaType, title: it.title, poster: it.HDPosterUrl, backdrop: it.backdrop, overview: Left(it.overview, 120), year: it.year, rating: it.rating }
+  ' overview completo (antes Left 120 cortaba la sinopsis en Mi lista)
+  ovFull = it.overview
+  if ovFull = invalid then ovFull = ""
+  return { ckey: it.ckey, id: it.tmdbId, mt: it.mediaType, title: it.title, poster: it.HDPosterUrl, backdrop: it.backdrop, overview: ovFull, year: it.year, rating: it.rating }
 end function
 
 sub saveRecent(rec as Object, t as Dynamic, d as Dynamic)
