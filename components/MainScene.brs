@@ -60,6 +60,7 @@ sub init()
   m.apiAccum = []
   m.apiKind = ""
   m.apiPage = 1
+  m.catalogGen = 0
   m.zone = "nav"
   m.tvMode = "countries"
   m.tab = 0
@@ -206,6 +207,7 @@ end function
 
 sub loadApiCatalog(kind as String)
   m.status.text = "Cargando..."
+  m.catalogGen = m.catalogGen + 1
   m.apiKind = kind
   m.apiAccum = []
   m.apiPage = 1
@@ -257,15 +259,24 @@ sub onApiCatalog()
   res = invalid
   if m.apiTask <> invalid then res = m.apiTask.response
   kind = m.apiKind
+  ' Ignorar respuesta vieja si ya cambio de seccion
+  if m.tabId <> kind then return
   if res = invalid then
-    m.status.text = "No se pudo cargar el catalogo."
+    if m.tabId = kind then m.status.text = "No se pudo cargar el catalogo."
     return
   end if
   list = pickApiList(res)
   for each item in list
     m.apiAccum.Push(item)
   end for
-  if m.apiPage < 3 and list.count() > 0 then
+  ' Cargar mas paginas (hasta 12) para ver todo el catalogo
+  maxPages = 12
+  if res <> invalid and res.total_pages <> invalid then
+    tp = res.total_pages
+    if type(tp) = "roString" or type(tp) = "String" then tp = Val(tp)
+    if tp > 0 and tp < maxPages then maxPages = tp
+  end if
+  if m.apiPage < maxPages and list.count() > 0 then
     loadApiCatalogPage(kind, m.apiPage + 1)
     return
   end if
@@ -310,9 +321,9 @@ sub showPosterGrid(root as Object, kind as String)
   m.posterGrid.jumpToItem = 0
   m.hero.visible = true
   if root.getChildCount() > 0 then updateHeroFrom(root.getChild(0))
-  m.zone = "content"
-  renderNav()
-  m.posterGrid.setFocus(true)
+  ' Quedarse en la barra de secciones (Derecha/OK para entrar al listado)
+  m.zone = "nav"
+  focusNav()
 end sub
 
 sub onPosterFocus()
@@ -566,6 +577,7 @@ sub moveTab(d as Integer)
   n = m.tab + d
   if n < 0 or n >= m.tabs.count() then return
   selectTab(n)
+  focusNav()
 end sub
 
 sub hideAll()
@@ -814,7 +826,16 @@ sub showRows(root as Object)
     updateHeroFrom(first.getChild(0))
   end if
   updateHomeUi()
-  if m.zone = "content" then m.rows.setFocus(true)
+  if m.tabId = "home" then
+    ' En inicio: foco en filas para poder moverse al entrar
+    m.zone = "content"
+    renderNav()
+    m.rows.setFocus(true)
+  else if m.zone = "content" then
+    m.rows.setFocus(true)
+  else
+    focusNav()
+  end if
 end sub
 
 ' ---------- Portada destacada del inicio ----------
@@ -955,6 +976,25 @@ sub onHeroTmdb()
   end if
   if rt <> "" or yr <> "" then
     m.meta.text = kind + "   |   " + yr + "   |   TMDB " + rt + " / 10"
+  end if
+  ' Guardar en el nodo enfocado para al salir del detalle no se pierda
+  itn = invalid
+  if m.posterGrid <> invalid and m.posterGrid.visible and m.posterGrid.content <> invalid then
+    idx = m.posterGrid.itemFocused
+    if idx <> invalid then itn = m.posterGrid.content.getChild(idx)
+  end if
+  if itn = invalid and m.rows <> invalid and m.rows.visible and m.rows.content <> invalid then
+    rc = m.rows.rowItemFocused
+    if rc <> invalid then
+      row = m.rows.content.getChild(rc[0])
+      if row <> invalid then itn = row.getChild(rc[1])
+    end if
+  end if
+  if itn <> invalid then
+    if yr <> "" then itn.year = yr
+    if rt <> "" then itn.rating = rt
+    if d.overview <> invalid and d.overview <> "" then itn.overview = d.overview
+    if d.backdrop_path <> invalid and d.backdrop_path <> "" then itn.backdrop = d.backdrop_path
   end if
   ' Generos
   if m.heroGenres <> invalid then
@@ -1118,11 +1158,37 @@ sub closeDetails()
     m.top.removeChild(m.details)
     m.details = invalid
   end if
+  ' Restaurar banner/año/sinopsis del item enfocado
+  m.heroFetchId = 0
+  refreshHeroFromFocus()
   if m.zone = "content" then
     if m.tabId = "favs" then selectTab(m.tab)
     focusContent()
+    refreshHeroFromFocus()
   else
     m.navKeys.setFocus(true)
+  end if
+end sub
+
+sub refreshHeroFromFocus()
+  it = invalid
+  if m.posterGrid <> invalid and m.posterGrid.visible and m.posterGrid.content <> invalid then
+    idx = m.posterGrid.itemFocused
+    if idx = invalid then idx = 0
+    it = m.posterGrid.content.getChild(idx)
+  else if m.rows <> invalid and m.rows.visible and m.rows.content <> invalid then
+    rc = m.rows.rowItemFocused
+    if rc <> invalid then
+      row = m.rows.content.getChild(rc[0])
+      if row <> invalid then it = row.getChild(rc[1])
+    else if m.rows.content.getChildCount() > 0 then
+      row = m.rows.content.getChild(0)
+      if row <> invalid and row.getChildCount() > 0 then it = row.getChild(0)
+    end if
+  end if
+  if it <> invalid then
+    m.hero.visible = true
+    updateHeroFrom(it)
   end if
 end sub
 
@@ -1168,15 +1234,21 @@ sub playItem(it as Object)
 end sub
 
 sub showPlayStatus(txt as String)
-  ' Mostrar DENTRO del detalle, no en inicio
+  if m.eps <> invalid then
+    m.eps.playStatus = txt
+  end if
   if m.details <> invalid then
     m.details.playStatus = txt
-  else
+  end if
+  if m.eps = invalid and m.details = invalid then
     m.status.text = txt
   end if
 end sub
 
 sub hidePlayStatus()
+  if m.eps <> invalid then
+    m.eps.playStatus = ""
+  end if
   if m.details <> invalid then
     m.details.playStatus = ""
   end if
@@ -1538,12 +1610,8 @@ end sub
 
 ' ---------- Búsqueda ----------
 sub openSearch()
-  if m.key = "" then
-    m.status.text = "Falta tu API key de TMDB. Edítala en source/config.json."
-    return
-  end if
   d = CreateObject("roSGNode", "StandardKeyboardDialog")
-  d.title = "Buscar películas y series"
+  d.title = "Buscar peliculas y series"
   d.buttons = ["Buscar", "Cancelar"]
   d.observeFieldScoped("buttonSelected", "onSearchBtn")
   m.top.dialog = d
@@ -1552,16 +1620,94 @@ end sub
 sub onSearchBtn(evt as Object)
   d = m.top.dialog
   if d = invalid then return
-  q = d.text
   idx = evt.getData()
+  q = ""
+  if d.text <> invalid then q = d.text
+  ' Cerrar teclado primero (no hacer selectTab aqui: congela)
   d.close = true
-  m.navKeys.setFocus(true)
-  if idx = 0 and q <> "" then
-    m.pend["search"] = { n: 1, res: {}, q: q, defs: [{ t: "Resultados: " + q, mt: "" }] }
-    m.cache.Delete("search")
-    m.status.text = "Buscando..."
-    fetch("search", 0, "/search/multi", "", q)
+  m.top.dialog = invalid
+  if idx <> 0 then
+    focusNav()
+    return
   end if
+  if q = "" then
+    focusNav()
+    return
+  end if
+  m.pendingSearchQ = q
+  m.status.text = "Buscando..."
+  m.cache.Delete("search")
+  ' Escapar query de forma segura
+  eq = q
+  u = CreateObject("roUrlTransfer")
+  if u <> invalid then
+    eq = u.Escape(q)
+  end if
+  url = "https://pelisplushd.tvymas.workers.dev/search?q=" + eq + "&page=1"
+  task = CreateObject("roSGNode", "ApiTask")
+  m.searchTask = task
+  task.requestUrl = url
+  task.observeField("response", "onSearchApi")
+  task.control = "RUN"
+  focusNav()
+end sub
+
+sub onSearchApi()
+  res = invalid
+  if m.searchTask <> invalid then res = m.searchTask.response
+  m.searchTask = invalid
+  if res = invalid then
+    m.status.text = "No se pudo buscar. Intenta de nuevo."
+    focusNav()
+    return
+  end if
+  list = []
+  if res.results <> invalid then list = res.results
+  if type(list) <> "roArray" then list = []
+  if list.count() = 0 then
+    tmp = pickApiList(res)
+    if tmp <> invalid then list = tmp
+  end if
+  root = CreateObject("roSGNode", "ContentNode")
+  row = CreateObject("roSGNode", "ContentNode")
+  row.title = "Resultados"
+  for each item in list
+    kind = "movies"
+    u = strVal(item.url)
+    if u = "" then u = strVal(item.link)
+    if Instr(1, u, "/serie/") > 0 then kind = "series"
+    if Instr(1, u, "/anime/") > 0 then kind = "anime"
+    if Instr(1, u, "/dorama/") > 0 then kind = "doramas"
+    if Instr(1, u, "/pelicula/") > 0 then kind = "movies"
+    tp = LCase(strVal(item.type))
+    if tp = "" then tp = LCase(strVal(item.tipo))
+    if Instr(1, tp, "serie") > 0 then kind = "series"
+    if Instr(1, tp, "anime") > 0 then kind = "anime"
+    if Instr(1, tp, "pelicul") > 0 or Instr(1, tp, "movie") > 0 then kind = "movies"
+    n = apiItemToNode(item, kind)
+    if n <> invalid then row.appendChild(n)
+  end for
+  if row.getChildCount() = 0 then
+    m.status.text = "Sin resultados."
+    focusNav()
+    return
+  end if
+  root.appendChild(row)
+  m.cache["search"] = root
+  m.status.text = ""
+  ' Ahora si ir a la pestana Buscar y mostrar
+  for si = 0 to m.tabs.count() - 1
+    if m.tabs[si].id = "search" then
+      m.tab = si
+      m.tabId = "search"
+      renderNav()
+      exit for
+    end if
+  end for
+  showRows(root)
+  m.zone = "content"
+  renderNav()
+  m.rows.setFocus(true)
 end sub
 
 ' ---------- Teclas ----------
@@ -1641,21 +1787,27 @@ end function
 ' ---------- Guardián de foco: evita quedarse sin poder moverse ----------
 sub onFocusGuard()
   if m.details <> invalid or m.video <> invalid then return
+  if m.eps <> invalid then return
   if m.top.dialog <> invalid then return
+  ' Si ya hay un control con foco, no tocar
+  if m.navKeys.hasFocus() then return
+  if m.rows.hasFocus() then return
+  if m.grid.hasFocus() then return
+  if m.posterGrid <> invalid and m.posterGrid.hasFocus() then return
   if m.zone = "content" then
-    if m.tabId = "tv" then
-      if m.grid.visible and not m.grid.hasFocus() then m.grid.setFocus(true)
+    if m.tabId = "tv" and m.grid.visible then
+      m.grid.setFocus(true)
     else if m.posterGrid <> invalid and m.posterGrid.visible then
-      if not m.posterGrid.hasFocus() then m.posterGrid.setFocus(true)
+      m.posterGrid.setFocus(true)
     else if m.rows.visible then
-      if not m.rows.hasFocus() then m.rows.setFocus(true)
+      m.rows.setFocus(true)
     else
       m.zone = "nav"
       renderNav()
       m.navKeys.setFocus(true)
     end if
   else
-    if not m.navKeys.hasFocus() then m.navKeys.setFocus(true)
+    m.navKeys.setFocus(true)
   end if
 end sub
 
@@ -1739,7 +1891,7 @@ sub onEpsAction(evt as Object)
     closeEpisodes()
   else if a = "play" then
     ep = m.eps.episode
-    playEpisode(m.eps.content, ep.season, ep.episode, ep.name)
+    playEpisode(m.eps.content, ep)
   end if
 end sub
 
@@ -1749,29 +1901,67 @@ function detectFmt(src as Object) as String
   return "mp4"
 end function
 
-sub playEpisode(show as Object, sn as Integer, en as Integer, name as String)
-  ck = "tv:" + show.tmdbId.toStr() + ":" + sn.toStr() + ":" + en.toStr()
-  src = invalid
-  j = ParseJson(ReadAsciiFile("pkg:/source/sources.json"))
-  if j <> invalid then
-    src = j[ck]
-    if src = invalid then src = j[show.ckey]
+' Serie: usa extractUrl del episodio (API), mismo flujo que peliculas
+sub playEpisode(show as Object, ep as Object)
+  if show = invalid or ep = invalid then return
+  sn = 1
+  en = 1
+  name = ""
+  extractUrl = ""
+  if ep.season <> invalid then sn = ep.season
+  if ep.episode <> invalid then en = ep.episode
+  if ep.name <> invalid then name = ep.name
+  if ep.extractUrl <> invalid then extractUrl = ep.extractUrl
+  ' Armar desde extractUrl de la serie
+  base = ""
+  if show.extractUrl <> invalid then base = show.extractUrl
+  if base = "" and show.DoesExist("extractUrl") then base = show.extractUrl
+  if extractUrl = "" and base <> "" then
+    if Right(base, 1) = "/" then
+      extractUrl = base + sn.toStr() + "/" + en.toStr()
+    else
+      extractUrl = base + "/" + sn.toStr() + "/" + en.toStr()
+    end if
   end if
-  if src = invalid then
-    msg("Sin fuente de video", ["Agrega la fuente en source/sources.json con la clave " + ck + " (o " + show.ckey + " para toda la serie)."])
+  ' Ultimo recurso: slug en ckey tv:api:slug
+  if extractUrl = "" and show.ckey <> invalid then
+    ck0 = show.ckey
+    if Instr(1, ck0, "api:") > 0 then
+      slug = Mid(ck0, Instr(1, ck0, "api:") + 4)
+      if slug <> "" then
+        extractUrl = "https://pelisplushd.tvymas.workers.dev/serie/" + slug + "/" + sn.toStr() + "/" + en.toStr()
+      end if
+    end if
+  end if
+  ck = "tv:"
+  if show.tmdbId <> invalid then ck = ck + show.tmdbId.toStr()
+  ck = ck + ":" + sn.toStr() + ":" + en.toStr()
+  title = show.title + "  T" + sn.toStr() + " E" + en.toStr()
+  if name <> "" then title = show.title + " - " + name
+  if extractUrl = "" then
+    msg("Sin fuente de video", ["Este episodio no tiene URL de la API."])
     return
   end if
-  url = src.url
-  url = url.Replace("{ss}", Right("0" + sn.toStr(), 2))
-  url = url.Replace("{ee}", Right("0" + en.toStr(), 2))
-  url = url.Replace("{s}", sn.toStr())
-  url = url.Replace("{e}", en.toStr())
-  rec = recOf(show)
-  rec.ckey = ck
-  rec.title = show.title + "  T" + sn.toStr() + " E" + en.toStr()
-  start = 0
-  for each r in m.recent
-    if r.ckey = ck and r.t <> invalid then start = r.t
-  end for
-  startVideo(url, detectFmt(src), show.title + "  T" + sn.toStr() + " - E" + en.toStr(), ck, false, start, rec)
+  fake = CreateObject("roSGNode", "ContentNode")
+  fake.title = title
+  fake.addField("ckey", "string", false)
+  fake.ckey = ck
+  fake.addField("extractUrl", "string", false)
+  fake.extractUrl = extractUrl
+  fake.addField("tmdbId", "integer", false)
+  if show.tmdbId <> invalid then fake.tmdbId = show.tmdbId
+  fake.addField("mediaType", "string", false)
+  fake.mediaType = "tv"
+  fake.addField("overview", "string", false)
+  fake.overview = ""
+  fake.addField("backdrop", "string", false)
+  fake.backdrop = ""
+  if show.backdrop <> invalid then fake.backdrop = show.backdrop
+  fake.addField("year", "string", false)
+  fake.year = ""
+  fake.addField("rating", "string", false)
+  fake.rating = ""
+  fake.HDPosterUrl = ""
+  if show.HDPosterUrl <> invalid then fake.HDPosterUrl = show.HDPosterUrl
+  playItem(fake)
 end sub

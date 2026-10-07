@@ -86,13 +86,101 @@ sub onContent()
   end if
   m.prov.text = ""
   m.genres.text = ""
-  t = CreateObject("roSGNode", "TmdbTask")
-  m.task = t
-  t.apiKey = m.top.apiKey
-  t.path = "/" + c.mediaType + "/" + c.tmdbId.toStr()
-  t.params = "&append_to_response=watch/providers"
-  t.observeField("result", "onDetail")
-  t.control = "RUN"
+  ' Completar datos desde API (serie/pelicula) si hay extractUrl
+  if c.extractUrl <> invalid and c.extractUrl <> "" then
+    at = CreateObject("roSGNode", "ApiTask")
+    m.apiDetailTask = at
+    at.requestUrl = c.extractUrl
+    at.observeField("response", "onApiDetail")
+    at.control = "RUN"
+  end if
+  if c.tmdbId <> invalid and c.tmdbId > 0 and m.top.apiKey <> "" then
+    t = CreateObject("roSGNode", "TmdbTask")
+    m.task = t
+    t.apiKey = m.top.apiKey
+    t.path = "/" + c.mediaType + "/" + c.tmdbId.toStr()
+    t.params = "&append_to_response=watch/providers"
+    t.observeField("result", "onDetail")
+    t.control = "RUN"
+  end if
+end sub
+
+sub onApiDetail()
+  res = invalid
+  if m.apiDetailTask <> invalid then res = m.apiDetailTask.response
+  if res = invalid then return
+  c = m.top.content
+  ' Sinopsis de la API si falta
+  ov = ""
+  if res.description <> invalid then ov = res.description
+  if ov = "" and res.overview_tmdb <> invalid then ov = res.overview_tmdb
+  if ov = "" and res.overview <> invalid then ov = res.overview
+  if ov <> "" then
+    cur = m.ov.text
+    if cur = "" or cur = "Sin sinopsis en español." then m.ov.text = ov
+    if c <> invalid then c.overview = ov
+  end if
+  ' Portada
+  poster = ""
+  if res.poster_tmdb <> invalid then poster = res.poster_tmdb
+  if poster = "" and res.image <> invalid then poster = res.image
+  if poster = "" and res.portada <> invalid then poster = res.portada
+  if poster <> "" then
+    m.poster.uri = poster
+    if c <> invalid then c.HDPosterUrl = poster
+  end if
+  ' Banner
+  if res.backdrop <> invalid and res.backdrop <> "" then
+    m.bd.uri = res.backdrop
+    if c <> invalid then c.backdrop = res.backdrop
+  end if
+  ' Año y rating
+  yr = ""
+  if res.year <> invalid then yr = res.year.toStr()
+  if yr = "" and res.release_date <> invalid and Len(res.release_date) >= 4 then yr = Left(res.release_date, 4)
+  rt = ""
+  if res.rating <> invalid then rt = Left(res.rating.toStr(), 3)
+  if res.tmdb_rating <> invalid and rt = "" then rt = Left(res.tmdb_rating.toStr(), 3)
+  if yr <> "" or rt <> "" then
+    m.meta.text = m.kind + "   |   " + yr + "   |   TMDB " + rt + " / 10"
+    if c <> invalid then
+      if yr <> "" then c.year = yr
+      if rt <> "" then c.rating = rt
+    end if
+  end if
+  ' Generos API
+  if res.genres <> invalid then
+    gtxt = ""
+    if type(res.genres) = "roArray" then
+      for each g in res.genres
+        if type(g) = "roString" or type(g) = "String" then
+          if gtxt <> "" then gtxt = gtxt + "  ·  "
+          gtxt = gtxt + g
+        else if g.name <> invalid then
+          if gtxt <> "" then gtxt = gtxt + "  ·  "
+          gtxt = gtxt + g.name
+        end if
+      end for
+    end if
+    if gtxt <> "" and m.genres.text = "" then m.genres.text = gtxt
+  end if
+  ' Corregir tmdb_id si la API trae el bueno
+  if res.tmdb_id <> invalid and c <> invalid then
+    tid = res.tmdb_id
+    if type(tid) = "roString" or type(tid) = "String" then tid = Val(tid)
+    if tid > 0 then
+      c.tmdbId = tid
+      if m.top.apiKey <> "" then
+        t = CreateObject("roSGNode", "TmdbTask")
+        m.task = t
+        t.apiKey = m.top.apiKey
+        t.path = "/" + c.mediaType + "/" + tid.toStr()
+        t.params = "&append_to_response=watch/providers"
+        t.observeField("result", "onDetail")
+        t.control = "RUN"
+      end if
+    end if
+  end if
 end sub
 
 sub onDetail(evt as Object)

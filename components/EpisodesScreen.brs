@@ -5,6 +5,8 @@ sub init()
   m.seasons = m.top.findNode("seasons")
   m.eps = m.top.findNode("eps")
   m.status = m.top.findNode("status")
+  m.playStatusLbl = m.top.findNode("playStatusLbl")
+  m.playStatusBg = m.top.findNode("playStatusBg")
   m.timer = m.top.findNode("debounce")
   m.timer.observeField("fire", "onTimer")
   m.seasons.observeField("itemFocused", "onSeasonFocus")
@@ -12,10 +14,25 @@ sub init()
   m.eps.observeField("itemSelected", "onEpPick")
   m.top.observeField("focusedChild", "onFocusChange")
   m.cache = {}
-  m.tasks = {}
   m.seasonNums = []
+  m.seasonData = []
   m.curSeason = -1
   m.inEps = false
+end sub
+
+sub onPlayStatus()
+  txt = m.top.playStatus
+  if txt = invalid then txt = ""
+  if m.playStatusLbl = invalid then return
+  if txt = "" then
+    m.playStatusLbl.visible = false
+    m.playStatusBg.visible = false
+    m.playStatusLbl.text = ""
+  else
+    m.playStatusLbl.text = txt
+    m.playStatusLbl.visible = true
+    m.playStatusBg.visible = true
+  end if
 end sub
 
 function txt(v as Dynamic) as String
@@ -44,17 +61,98 @@ sub onContent()
   c = m.top.content
   if c = invalid then return
   m.title.text = c.title
-  if c.backdrop <> "" then m.bd.uri = "https://image.tmdb.org/t/p/w1280" + c.backdrop
-  m.status.text = "Cargando temporadas…"
+  m.bd.uri = ""
+  if c.backdrop <> invalid and c.backdrop <> "" then
+    if Left(c.backdrop, 1) = "/" then
+      m.bd.uri = "https://image.tmdb.org/t/p/w1280" + c.backdrop
+    else if Instr(1, c.backdrop, "http") = 1 then
+      m.bd.uri = c.backdrop
+    end if
+  end if
+  m.status.text = "Cargando temporadas..."
+  m.seasonData = []
+  m.seasonNums = []
+  m.cache = {}
+  ' Preferir API de la serie (extractUrl)
+  extractUrl = ""
+  if c.extractUrl <> invalid then extractUrl = c.extractUrl
+  if extractUrl <> "" then
+    task = CreateObject("roSGNode", "ApiTask")
+    m.apiTask = task
+    task.requestUrl = extractUrl
+    task.observeField("response", "onApiSeries")
+    task.control = "RUN"
+    return
+  end if
+  ' Fallback TMDB
+  loadTmdbSeasons()
+end sub
+
+sub loadTmdbSeasons()
+  c = m.top.content
+  if c = invalid or c.tmdbId = invalid or c.tmdbId = 0 then
+    m.status.text = "Sin datos de temporadas."
+    return
+  end if
   t = CreateObject("roSGNode", "TmdbTask")
   m.showTask = t
   t.apiKey = m.top.apiKey
   t.path = "/tv/" + c.tmdbId.toStr()
-  t.observeField("result", "onShow")
+  t.observeField("result", "onShowTmdb")
   t.control = "RUN"
 end sub
 
-sub onShow(evt as Object)
+sub onApiSeries()
+  res = invalid
+  if m.apiTask <> invalid then res = m.apiTask.response
+  if res = invalid then
+    loadTmdbSeasons()
+    return
+  end if
+  ' temporadas (tvymas) o seasons (apislatam)
+  list = invalid
+  if res.temporadas <> invalid then list = res.temporadas
+  if list = invalid and res.seasons <> invalid then list = res.seasons
+  if list = invalid or list.count() = 0 then
+    loadTmdbSeasons()
+    return
+  end if
+  root = CreateObject("roSGNode", "ContentNode")
+  m.seasonNums = []
+  m.seasonData = []
+  for each s in list
+    n = 0
+    if s.season_number <> invalid then n = s.season_number
+    if n = 0 and s.season <> invalid then n = s.season
+    if n = 0 and s.temporada <> invalid then n = s.temporada
+    eps = invalid
+    if s.episodios <> invalid then eps = s.episodios
+    if eps = invalid and s.episodes <> invalid then eps = s.episodes
+    if eps = invalid then eps = []
+    node = CreateObject("roSGNode", "ContentNode")
+    node.title = seasonName(n)
+    if s.name <> invalid and s.name <> "" then node.title = s.name
+    root.appendChild(node)
+    m.seasonNums.Push(n)
+    pack = CreateObject("roAssociativeArray")
+    pack.num = n
+    pack.eps = eps
+    m.seasonData.Push(pack)
+  end for
+  if m.seasonNums.Count() = 0 then
+    m.status.text = "Esta serie no tiene temporadas."
+    return
+  end if
+  m.seasons.content = root
+  m.status.text = ""
+  m.seasons.jumpToItem = 0
+  m.curSeason = -1
+  m.inEps = false
+  m.seasons.setFocus(true)
+  loadSeasonEps(0)
+end sub
+
+sub onShowTmdb(evt as Object)
   d = evt.getData()
   if d = invalid then return
   if d.seasons = invalid then
@@ -63,33 +161,31 @@ sub onShow(evt as Object)
   end if
   root = CreateObject("roSGNode", "ContentNode")
   m.seasonNums = []
-  for each pass in [1, 2]
-    for each s in d.seasons
-      n = s.season_number
-      if n <> invalid then
-        isReg = (n > 0)
-        if (pass = 1 and isReg) or (pass = 2 and not isReg) then
-          cnt = 0
-          if s.episode_count <> invalid then cnt = s.episode_count
-          if isReg or cnt > 0 then
-            node = CreateObject("roSGNode", "ContentNode")
-            node.title = seasonName(n)
-            root.appendChild(node)
-            m.seasonNums.Push(n)
-          end if
-        end if
-      end if
-    end for
+  m.seasonData = []
+  for each s in d.seasons
+    n = s.season_number
+    if n <> invalid and n > 0 then
+      node = CreateObject("roSGNode", "ContentNode")
+      node.title = seasonName(n)
+      root.appendChild(node)
+      m.seasonNums.Push(n)
+      pack = CreateObject("roAssociativeArray")
+      pack.num = n
+      pack.eps = invalid
+      pack.tmdb = true
+      m.seasonData.Push(pack)
+    end if
   end for
   if m.seasonNums.Count() = 0 then
-    m.status.text = "Esta serie no tiene temporadas registradas en TMDB."
+    m.status.text = "Esta serie no tiene temporadas."
     return
   end if
-  m.status.text = ""
   m.seasons.content = root
+  m.status.text = ""
   m.seasons.jumpToItem = 0
-  loadSeasonAt(0)
-  if not m.inEps then m.seasons.setFocus(true)
+  m.curSeason = -1
+  m.seasons.setFocus(true)
+  loadSeasonEps(0)
 end sub
 
 sub onSeasonFocus()
@@ -98,110 +194,202 @@ sub onSeasonFocus()
 end sub
 
 sub onTimer()
-  loadSeasonAt(m.seasons.itemFocused)
-end sub
-
-sub loadSeasonAt(idx as Integer)
-  if idx < 0 or idx >= m.seasonNums.Count() then return
-  n = m.seasonNums[idx]
-  if n = m.curSeason then return
-  m.curSeason = n
-  m.seasonTitle.text = seasonName(n)
-  if m.cache.DoesExist(n.toStr()) then
-    showSeason(n, 0)
-    return
-  end if
-  m.eps.content = CreateObject("roSGNode", "ContentNode")
-  m.status.text = "Cargando episodios…"
-  t = CreateObject("roSGNode", "TmdbTask")
-  t.tab = "season"
-  t.idx = n
-  t.apiKey = m.top.apiKey
-  t.path = "/tv/" + m.top.content.tmdbId.toStr() + "/season/" + n.toStr()
-  t.observeField("result", "onSeasonData")
-  m.tasks[n.toStr()] = t
-  t.control = "RUN"
-end sub
-
-sub onSeasonData(evt as Object)
-  t = evt.getRoSGNode()
-  res = evt.getData()
-  n = t.idx
-  if res = invalid then return
-  if res.episodes = invalid then
-    if n = m.curSeason then
-      m.status.text = "No se pudieron cargar los episodios. Cambia de temporada y vuelve a intentar."
-      m.curSeason = -1
-    end if
-    return
-  end if
-  m.cache[n.toStr()] = res
-  if n = m.curSeason then showSeason(n, 0)
-end sub
-
-sub showSeason(n as Integer, keepIdx as Integer)
-  raw = m.cache[n.toStr()]
-  if raw = invalid then return
-  seen = loadWatched()
-  root = CreateObject("roSGNode", "ContentNode")
-  showId = m.top.content.tmdbId.toStr()
-  for each e in raw.episodes
-    ep = e.episode_number
-    if ep <> invalid then
-      node = CreateObject("roSGNode", "ContentNode")
-      name = txt(e.name)
-      if name = "" then name = "Episodio " + ep.toStr()
-      node.title = ep.toStr() + ". " + name
-      still = txt(e.still_path)
-      if still <> "" then node.HDPosterUrl = "https://image.tmdb.org/t/p/w300" + still
-      parts = []
-      if e.runtime <> invalid then
-        if e.runtime > 0 then parts.Push(e.runtime.toStr() + " min")
-      end if
-      ad = txt(e.air_date)
-      if ad <> "" then
-        dp = ad.Split("-")
-        if dp.Count() = 3 then parts.Push(dp[2] + "/" + dp[1] + "/" + dp[0])
-      end if
-      meta = ""
-      for i = 0 to parts.Count() - 1
-        if i > 0 then meta = meta + "   |   "
-        meta = meta + parts[i]
-      end for
-      ov = txt(e.overview)
-      if ov = "" then ov = "Sin sinopsis."
-      key = "tv:" + showId + ":" + n.toStr() + ":" + ep.toStr()
-      node.addFields({ epNum: ep, epName: name, meta: meta, epOverview: ov, epRating: Left(txt(e.vote_average), 3), watched: seen.DoesExist(key) })
-      root.appendChild(node)
-    end if
-  end for
-  m.eps.content = root
-  total = root.getChildCount()
-  if total = 0 then
-    m.status.text = "Esta temporada aún no tiene episodios."
-  else
-    m.status.text = ""
-    if keepIdx >= total then keepIdx = 0
-    m.eps.jumpToItem = keepIdx
-  end if
-  m.seasonTitle.text = seasonName(n) + "   ·   " + total.toStr() + " episodios"
-end sub
-
-sub onRefresh()
-  if m.curSeason < 0 then return
-  if not m.cache.DoesExist(m.curSeason.toStr()) then return
-  showSeason(m.curSeason, m.eps.itemFocused)
+  idx = m.seasons.itemFocused
+  if idx = invalid then return
+  loadSeasonEps(idx)
 end sub
 
 sub onSeasonPick()
+  idx = m.seasons.itemSelected
+  if idx = invalid then return
+  loadSeasonEps(idx)
   focusEps()
 end sub
 
+sub loadSeasonEps(idx as Integer)
+  if idx < 0 or idx >= m.seasonNums.Count() then return
+  if idx = m.curSeason and m.eps.content <> invalid then return
+  m.curSeason = idx
+  sn = m.seasonNums[idx]
+  m.seasonTitle.text = seasonName(sn) + "  ·  episodios"
+  pack = m.seasonData[idx]
+  ' Cache
+  key = sn.toStr()
+  if m.cache.DoesExist(key) then
+    m.eps.content = m.cache[key]
+    return
+  end if
+  if pack.eps <> invalid then
+    buildEpsFromApi(sn, pack.eps)
+    return
+  end if
+  ' TMDB episodes
+  c = m.top.content
+  m.status.text = "Cargando episodios..."
+  t = CreateObject("roSGNode", "TmdbTask")
+  m.epTask = t
+  t.apiKey = m.top.apiKey
+  t.path = "/tv/" + c.tmdbId.toStr() + "/season/" + sn.toStr()
+  t.observeField("result", "onEpsTmdb")
+  t.control = "RUN"
+end sub
+
+sub buildEpsFromApi(sn as Integer, eps as Object)
+  c = m.top.content
+  watched = loadWatched()
+  root = CreateObject("roSGNode", "ContentNode")
+  base = ""
+  if c.extractUrl <> invalid then base = c.extractUrl
+  for each e in eps
+    en = 0
+    if e.episode_number <> invalid then en = e.episode_number
+    if en = 0 and e.episode <> invalid then en = e.episode
+    if en = 0 and e.episodio <> invalid then en = e.episodio
+    name = txt(e.name)
+    if name = "" then name = txt(e.title)
+    if name = "" then name = txt(e.titulo)
+    if name = "" then name = "Episodio " + en.toStr()
+    ov = txt(e.overview)
+    if ov = "" then ov = txt(e.descripcion)
+    still = txt(e.still)
+    if still = "" then still = txt(e.image)
+    if still = "" then still = txt(e.back_img)
+    rate = ""
+    if e.rating <> invalid then rate = Left(txt(e.rating), 3)
+    extractUrl = txt(e.extract_url)
+    if extractUrl = "" then extractUrl = txt(e.url)
+    if extractUrl = "" and base <> "" then
+      extractUrl = base
+      if Right(base, 1) = "/" then
+        extractUrl = base + sn.toStr() + "/" + en.toStr()
+      else
+        extractUrl = base + "/" + sn.toStr() + "/" + en.toStr()
+      end if
+    end if
+    ck = "tv:" + c.tmdbId.toStr() + ":" + sn.toStr() + ":" + en.toStr()
+    node = CreateObject("roSGNode", "ContentNode")
+    node.title = "E" + en.toStr() + "  ·  " + name
+    node.HDPosterUrl = still
+    node.addField("meta", "string", false)
+    node.meta = "T" + sn.toStr() + " E" + en.toStr()
+    node.addField("epOverview", "string", false)
+    node.epOverview = ov
+    node.addField("epRating", "string", false)
+    node.epRating = rate
+    node.addField("watched", "boolean", false)
+    node.watched = watched.DoesExist(ck)
+    node.addField("season", "integer", false)
+    node.season = sn
+    node.addField("episode", "integer", false)
+    node.episode = en
+    node.addField("name", "string", false)
+    node.name = name
+    node.addField("extractUrl", "string", false)
+    node.extractUrl = extractUrl
+    node.Description = extractUrl
+    root.appendChild(node)
+  end for
+  m.cache[sn.toStr()] = root
+  m.eps.content = root
+  m.status.text = ""
+end sub
+
+sub onEpsTmdb(evt as Object)
+  d = evt.getData()
+  m.status.text = ""
+  if d = invalid or d.episodes = invalid then
+    m.status.text = "Sin episodios."
+    return
+  end if
+  sn = m.seasonNums[m.curSeason]
+  c = m.top.content
+  watched = loadWatched()
+  root = CreateObject("roSGNode", "ContentNode")
+  base = ""
+  if c.extractUrl <> invalid then base = c.extractUrl
+  for each e in d.episodes
+    en = e.episode_number
+    name = txt(e.name)
+    if name = "" then name = "Episodio " + en.toStr()
+    still = ""
+    if e.still_path <> invalid and e.still_path <> "" then
+      still = "https://image.tmdb.org/t/p/w500" + e.still_path
+    end if
+    extractUrl = ""
+    if base <> "" then
+      if Right(base, 1) = "/" then
+        extractUrl = base + sn.toStr() + "/" + en.toStr()
+      else
+        extractUrl = base + "/" + sn.toStr() + "/" + en.toStr()
+      end if
+    end if
+    ck = "tv:" + c.tmdbId.toStr() + ":" + sn.toStr() + ":" + en.toStr()
+    node = CreateObject("roSGNode", "ContentNode")
+    node.title = "E" + en.toStr() + "  ·  " + name
+    node.HDPosterUrl = still
+    node.addField("meta", "string", false)
+    node.meta = "T" + sn.toStr() + " E" + en.toStr()
+    node.addField("epOverview", "string", false)
+    node.epOverview = txt(e.overview)
+    node.addField("epRating", "string", false)
+    node.epRating = Left(txt(e.vote_average), 3)
+    node.addField("watched", "boolean", false)
+    node.watched = watched.DoesExist(ck)
+    node.addField("season", "integer", false)
+    node.season = sn
+    node.addField("episode", "integer", false)
+    node.episode = en
+    node.addField("name", "string", false)
+    node.name = name
+    node.addField("extractUrl", "string", false)
+    node.extractUrl = extractUrl
+    node.Description = extractUrl
+    root.appendChild(node)
+  end for
+  m.cache[sn.toStr()] = root
+  m.eps.content = root
+end sub
+
 sub onEpPick()
-  node = m.eps.content.getChild(m.eps.itemSelected)
+  idx = m.eps.itemSelected
+  if m.eps.content = invalid then return
+  node = m.eps.content.getChild(idx)
   if node = invalid then return
-  m.top.episode = { season: m.curSeason, episode: node.epNum, name: node.epName }
+  ep = CreateObject("roAssociativeArray")
+  sn = 1
+  en = 1
+  if node.season <> invalid then sn = node.season
+  if node.episode <> invalid then en = node.episode
+  ep.season = sn
+  ep.episode = en
+  ep.name = ""
+  if node.name <> invalid then ep.name = node.name
+  extractUrl = ""
+  if node.extractUrl <> invalid then extractUrl = node.extractUrl
+  if extractUrl = "" and node.Description <> invalid then extractUrl = node.Description
+  if extractUrl = "" then
+    c = m.top.content
+    base = ""
+    if c <> invalid and c.extractUrl <> invalid then base = c.extractUrl
+    if base <> "" then
+      if Right(base, 1) = "/" then
+        extractUrl = base + sn.toStr() + "/" + en.toStr()
+      else
+        extractUrl = base + "/" + sn.toStr() + "/" + en.toStr()
+      end if
+    end if
+  end if
+  ep.extractUrl = extractUrl
+  m.top.episode = ep
   m.top.action = "play"
+end sub
+
+sub onRefresh()
+  m.cache = {}
+  if m.curSeason >= 0 then
+    m.curSeason = -1
+    loadSeasonEps(m.seasons.itemFocused)
+  end if
 end sub
 
 sub focusEps()
